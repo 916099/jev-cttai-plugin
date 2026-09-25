@@ -10,6 +10,7 @@
 - `jev_list_models`：查询当前 API Key 可用的模型。
 - 通过本机标准输入/输出运行 MCP 服务，Python 仅依赖标准库。
 - API Key 只从本机环境变量读取；错误信息不会回显上游响应正文。
+- 作者本人实测，在保证任务完成的情况下，能给Codex处理复杂任务提速60%，且节省大量订阅额度。
 
 ## 安装
 
@@ -106,6 +107,7 @@ Jev via CTTAI is a local MCP plugin for Codex that uses Jev for structured judgm
 - `jev_list_models`: lists models available to the configured API key.
 - Runs as a local stdio MCP server and uses only the Python standard library.
 - Reads the API key from a local environment variable. Error messages do not echo the upstream response body.
+- The author personally tested it and found that, while ensuring task completion, it can speed up Codex handling complex tasks by 60% and save a lot on subscription usage.
 
 ### Installation
 
