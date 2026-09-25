@@ -24,7 +24,7 @@
    ```
 
 2. 重启 Codex 桌面应用，打开插件目录，选择 `Jev via CTTAI` 并安装。
-3. 若插件市场无法读取私有仓库，请先在本机配置 GitHub Git 凭据，或使用下面的本地安装方式。
+3. 本仓库目前公开，正常情况下无需额外配置 GitHub 凭据。若你从其他私有镜像安装，请确保本机 Git 有权读取该仓库。
 
 Codex 插件市场的 GitHub 来源和本地插件安装方式见 [OpenAI 插件打包与分发文档](https://developers.openai.com/plugins/build/plugins)。
 
@@ -96,8 +96,96 @@ Jev 返回判断结果，不生成解释性长文。结果属于模型判断；�
 
 ## English
 
-Jev via CTTAI is a local MCP plugin for Codex. It exposes `jev_decide` for bounded `choice`, `score`, and `noul` judgments, and `jev_list_models` for listing models available to the configured API key. It uses Python's standard library and reads the API key from the local `CTTAI_API_KEY` environment variable.
+Jev via CTTAI is a local MCP plugin for Codex that uses Jev for structured judgments on clearly defined questions.
 
-As of 2026-09-26, the maintainer reports being unable to complete new-user registration on the TypeSafe website. Registration availability may change. For personal use, the maintainer recommends obtaining a Jev API key from [CTTAI](https://llmapi.cttai.art/). CTTAI is a third-party service; review its terms, pricing, and data practices before use.
+> **Registration and API key:** As of 2026-09-26, the maintainer is currently unable to complete new-user registration on the TypeSafe website. Availability may change; check the official site for its current status. For personal use, the maintainer recommends obtaining a Jev API key from [CTTAI](https://llmapi.cttai.art/). CTTAI is a third-party service. Review its terms of service, pricing, and data practices before using it.
 
-Install from GitHub with `codex plugin marketplace add 916099/jev-cttai-plugin`, restart Codex, then install the plugin from the plugin directory. Set `CTTAI_API_KEY`; optionally override `CTTAI_BASE_URL`, `CTTAI_MODEL`, `CTTAI_SYSTEMONE_PATH`, and `CTTAI_MODELS_PATH`. For another provider, use its HTTPS API base URL and Jev-compatible endpoint paths. If its authentication, JSON schema, or response format differs, adapt the request handling in `server.py`. See the Chinese sections above for detailed setup and usage.
+### Features
+
+- `jev_decide`: asks Jev to classify among `choice` options, assign a `score`, or make a `noul` yes/no judgment. Multiple questions can be sent in one request.
+- `jev_list_models`: lists models available to the configured API key.
+- Runs as a local stdio MCP server and uses only the Python standard library.
+- Reads the API key from a local environment variable. Error messages do not echo the upstream response body.
+
+### Installation
+
+#### Option 1: Install from GitHub in Codex
+
+This method requires Codex CLI and the plugin directory in the Codex desktop app.
+
+1. Run this command in PowerShell or a terminal (replace `916099/jev-cttai-plugin` with the repository path if you use a fork):
+
+   ```powershell
+   codex plugin marketplace add 916099/jev-cttai-plugin
+   ```
+
+2. Restart the Codex desktop app, open the plugin directory, and install `Jev via CTTAI` from the marketplace.
+3. This repository is public, so GitHub credentials are normally not needed. If you install from a private mirror, make sure Git on your computer has permission to read it.
+
+See the [OpenAI plugin packaging and distribution guide](https://developers.openai.com/plugins/build/plugins) for GitHub sources and local plugin marketplaces.
+
+#### Option 2: Install locally
+
+1. Clone this repository or download its ZIP from GitHub and extract it.
+2. Add the extracted folder to a local Codex plugin marketplace. The repository root contains `plugin.json`, `mcp.json`, `skills/`, and the marketplace metadata under `.agents/plugins/`.
+3. Check the Python executable in `mcp.json`. The current example uses `D:/Anaconda/python.exe`; replace it with the absolute path to Python on your computer, or use `python` if Python is on `PATH`.
+4. Configure the API key and service address as described below, then fully quit and restart Codex.
+
+### Configuration
+
+#### Windows environment variables
+
+Open **Edit environment variables for your account** in Windows. Under **User variables**, add the following variables:
+
+| Variable | Required | Default | Description |
+| --- | --- | --- | --- |
+| `CTTAI_API_KEY` | Yes | None | The API key issued by CTTAI. Never commit it to Git, paste it into chat, or store it in repository files. |
+| `CTTAI_BASE_URL` | No | `https://llmapi.cttai.art` | The service API base URL. It may include a provider-required API prefix, but do not append an endpoint path. |
+| `CTTAI_MODEL` | No | `jev-latest` | Default model. You can also choose a model per `jev_decide` call. |
+| `CTTAI_SYSTEMONE_PATH` | No | `/typesafe/v1/systemone` | Jev judgment endpoint path. |
+| `CTTAI_MODELS_PATH` | No | `/v1/models` | Model-list endpoint path. |
+
+Save the variables, fully quit Codex, and restart it so the plugin process can read them. Call `jev_list_models` to check the key, network connection, and model-list endpoint. `CTTAI_BASE_URL` must use HTTPS.
+
+#### Using another API provider
+
+You can try another service if it supports Jev-compatible System One requests and responses:
+
+1. Set `CTTAI_API_KEY` to the key issued by that service.
+2. Set `CTTAI_BASE_URL` to the HTTPS API base URL from the provider's documentation.
+3. If its judgment endpoint path differs, set `CTTAI_SYSTEMONE_PATH`. If its model-list endpoint differs, set `CTTAI_MODELS_PATH`.
+4. If the service has no model-list endpoint, skip `jev_list_models` and set `CTTAI_MODEL` to a model ID supported by that provider.
+5. Restart Codex. If model listing is supported, check it first, then try a low-risk judgment request.
+
+Example values only. Replace them with the actual URL and paths in the provider's documentation:
+
+```text
+CTTAI_BASE_URL=https://api.example.com
+CTTAI_SYSTEMONE_PATH=/typesafe/v1/systemone
+CTTAI_MODELS_PATH=/v1/models
+CTTAI_MODEL=jev-latest
+```
+
+If the provider uses a different authentication header, request JSON schema, or response format, changing the URL and paths is not sufficient. Adapt `_api_request` and the request construction in `jev_decide` in `server.py` to that provider's API documentation. Do not disable HTTPS validation or put the API key in source code or `mcp.json`.
+
+#### Python executable path
+
+`mcp.json` controls how the local MCP process starts. On Windows, change `command` to the absolute path of Python on your computer, or use `python` if it is on `PATH`. The `args` and `cwd` values can normally stay unchanged.
+
+### Usage
+
+In Codex, provide a bounded task, such as “classify this ticket as billing, technical, or other,” together with the ticket text, allowed categories, and decision criteria. The plugin calls Jev and returns a structured judgment with confidence or probability values.
+
+`jev_decide` accepts:
+
+- `state`: the text, object, or array to evaluate.
+- `questions`: one or more named questions. Each question must set `type` to `choice`, `score`, or `noul`.
+- `model`: optional model ID. If omitted, the plugin uses `CTTAI_MODEL` or `jev-latest`.
+
+Jev returns judgments rather than explanatory long-form text. Treat the output as a model judgment, not a guaranteed fact, and have a person review decisions with significant consequences.
+
+### Security and privacy
+
+- Provide the API key only through the `CTTAI_API_KEY` environment variable. Do not commit the key or logs containing it.
+- Text sent for judgment is processed by the service configured in `CTTAI_BASE_URL`. Do not submit sensitive information that you are not permitted to share with that service.
+- The plugin currently accepts HTTPS API URLs only.
